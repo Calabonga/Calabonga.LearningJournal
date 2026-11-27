@@ -1,28 +1,131 @@
-﻿int[] minutes = [50, 30, 45, 60, 0, 90, 120, 40, 45, 75];
+﻿using Calabonga.LearningJournal;
 
-var sum = 0;
-var count = 0;
-for (var i = 1; i < minutes.Length; i++)
+const int DailyGoalMinutes = 45;
+const int TopTopicsCount = 3;
+
+string folder = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "Calabonga.LearningJournal");
+IJournalStorage storage = new JsonJournalStorage(Path.Combine(folder, "journal.json"));
+
+List<StudyRecord> records;
+try
 {
-    if (minutes[i] > 45)
+    records = [.. storage.Load()];
+}
+catch (InvalidDataException ex)
+{
+    Console.WriteLine(ex.Message);
+    Console.WriteLine("Начинаем с пустого дневника.");
+    records = [];
+}
+catch (IOException ex)
+{
+    Console.WriteLine($"Не удалось прочитать дневник: {ex.Message}");
+    return;
+}
+
+Console.WriteLine($"Загружено записей: {records.Count}");
+
+while (true)
+{
+    ShowMenu();
+    int choice = ConsoleInput.ReadInt("Ваш выбор: ", 0, 3);
+    if (choice == 0)
     {
-        sum += minutes[i];
-        count++;
+        break;
+    }
+
+    switch (choice)
+    {
+        case 1:
+            AddRecord(records);
+            TrySave(storage, records);
+            break;
+        case 2:
+            ShowRecords(records);
+            break;
+        case 3:
+            ShowReport(records);
+            break;
     }
 }
 
-var average = (double)sum / count;
-Console.WriteLine($"Средняя длительность дней с выполненной целью: {average:F1}");
+Console.WriteLine("До свидания!");
 
+static void ShowMenu() => Console.WriteLine("""
 
-public static class Grading
+    === Дневник обучения ===
+    1. Добавить запись
+    2. Показать записи
+    3. Отчёт
+    0. Выход
+    """);
+
+static void AddRecord(List<StudyRecord> records)
 {
-    public static int GradeDay(int minutes) => minutes switch
+    string topic = ConsoleInput.ReadText("Тема: ");
+    if (string.IsNullOrWhiteSpace(topic))
     {
-        < 0 => 0,
-        < 30 => 1,
-        < 60 => 2,
-        < 120 => 3,
-        _ => 4
-    };
+        Console.WriteLine("Тема не может быть пустой.");
+        return;
+    }
+
+    int minutes = ConsoleInput.ReadMinutes("Минут: ");
+    string note = ConsoleInput.ReadText("Заметка (Enter — без заметки): ");
+
+    records.Add(new StudyRecord(
+        DateOnly.FromDateTime(DateTime.Today),
+        topic,
+        minutes,
+        string.IsNullOrWhiteSpace(note) ? null : note));
+    Console.WriteLine($"Добавлено. Всего записей: {records.Count}");
+}
+
+static void ShowRecords(List<StudyRecord> records)
+{
+    if (records.Count == 0)
+    {
+        Console.WriteLine("Записей пока нет.");
+        return;
+    }
+
+    foreach (StudyRecord record in records.OrderBy(r => r.Date))
+    {
+        string note = record.Note is null ? "" : $" — {record.Note}";
+        Console.WriteLine($"{record.Date:dd.MM.yyyy}  {record.Topic,-20} {record.Minutes,4} мин.{note}");
+    }
+}
+
+static void ShowReport(List<StudyRecord> records)
+{
+    if (records.Count == 0)
+    {
+        Console.WriteLine("Записей пока нет.");
+        return;
+    }
+
+    int totalMinutes = JournalStats.TotalMinutes(records);
+    int studyDays = JournalStats.StudyDays(records);
+    int goalDays = JournalStats.GoalDays(records, DailyGoalMinutes);
+
+    Console.WriteLine($"Всего: {totalMinutes / 60.0:F1} ч за {studyDays} дн.");
+    Console.WriteLine($"Цель {DailyGoalMinutes} мин. выполнена в {goalDays} днях из {studyDays}");
+    Console.WriteLine("Лучшие темы:");
+    foreach ((string topic, int minutes) in JournalStats.TopTopics(records, TopTopicsCount))
+    {
+        Console.WriteLine($"  {topic,-20} {minutes,5} мин.");
+    }
+}
+
+static void TrySave(IJournalStorage storage, List<StudyRecord> records)
+{
+    try
+    {
+        storage.Save(records);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.WriteLine($"Запись добавлена, но не сохранена: {ex.Message}");
+    }
 }
