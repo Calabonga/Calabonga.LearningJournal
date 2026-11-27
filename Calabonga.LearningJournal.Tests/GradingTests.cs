@@ -17,6 +17,6 @@ public class GradingTests
         => Assert.Equal(expected, Grading.GradeDay(minutes));
 
     [Fact]
-    public void GradeDay_AlmostTwoHours_ReturnsFour()
-        => Assert.Equal(4, Grading.GradeDay(119));
+    public void GradeDay_AlmostTwoHours_ReturnsThree()
+        => Assert.Equal(3, Grading.GradeDay(119));
 }
