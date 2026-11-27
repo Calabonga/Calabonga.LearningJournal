@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Calabonga.LearningJournal.Tests/Calabonga.LearningJournal.Tests.csproj" Id="3680c494-aaa0-4d7c-b0e3-3db478d0ac63" />
+  <Project Path="Calabonga.LearningJournal/Calabonga.LearningJournal.csproj" />
+</Solution>
